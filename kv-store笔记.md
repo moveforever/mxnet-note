@@ -34,9 +34,24 @@ KVStore初始化
 
 kv-dist 内部运行
 ---
-- KVStoreDistServer
+- python:`_init_kvstore_server_module()`
+- 发送`void RunServer(const Controller& controller)`
+- 初始化KVStoreDistServer
+  ```
+    KVStoreDistServer() {
+      using namespace std::placeholders;
+      ps_server_ = new ps::KVServer<float>(0);
+      static_cast<ps::SimpleApp*>(ps_server_)->set_request_handle(
+          std::bind(&KVStoreDistServer::CommandHandle, this, _1, _2));
+      ps_server_->set_request_handle(
+      std::bind(&KVStoreDistServer::DataHandle, this, _1, _2, _3));
+      sync_mode_ = false;
+    }
+  ```
   > ps::KVServer<float>* ps_server_;
+
   > set_request_handle(CommandHandle)//SimpleApp
+
   > set_request_handle(DataHandle)//KVServer
 
 - KVServer
@@ -85,8 +100,11 @@ kv-dist 内部运行
       RecvMsg(&msg);
       obj->Accept(msg);
     }
-  }```
-  `void Customer::Accept(const Message& recved) { recv_queue_.Push(recved); }`
+  }
+  ```
+  ```
+  void Customer::Accept(const Message& recved) { recv_queue_.Push(recved); }
+  ```
 
   - Van类
     > 通过Start函数开始，然后开辟一个线程（Receiving)
