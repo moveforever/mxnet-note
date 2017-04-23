@@ -30,6 +30,12 @@ KVStore初始化
       - 如果是异步模式，则
         ```
         kv->SendCommandToServers(kvstore::kSyncMode, "");
+        > 具体函数
+        void KVStoreDist::SendCommandToServers(int cmd_id,
+                                  const std::string& cmd_body) override {
+          CHECK_NOTNULL(ps_worker_);
+          ps_worker_->Wait(ps_worker_->Request(cmd_id,cmd_body,                                                       ps::kServerGroup));
+        }
         ```
 
 kv-dist 内部运行
