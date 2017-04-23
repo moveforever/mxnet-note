@@ -55,29 +55,29 @@ kv-dist 内部运行
 
 - Customer
   > 处理信息：Receiving函数不断调用recv_handle_函数处理
-```
-Customer::Customer(int id, const Customer::RecvHandle& recv_handle)
-    : id_(id), recv_handle_(recv_handle) {
-  Postoffice::Get()->AddCustomer(this);
-  recv_thread_ = std::unique_ptr<std::thread>(new std::thread(&Customer::Receiving, this));
-}
-void Customer::Receiving() {
-  while (true) {
-    Message recv;
-    recv_queue_.WaitAndPop(&recv);
-    if (!recv.meta.control.empty() &&
-        recv.meta.control.cmd == Control::TERMINATE) {
-      break;
+    ```
+    Customer::Customer(int id, const Customer::RecvHandle& recv_handle)
+            : id_(id), recv_handle_(recv_handle) {
+      Postoffice::Get()->AddCustomer(this);
+      recv_thread_ = std::unique_ptr<std::thread>(new std::thread(&Customer::Receiving, this));
     }
-    recv_handle_(recv);
-    if (!recv.meta.request) {
-      std::lock_guard<std::mutex> lk(tracker_mu_);
-      tracker_[recv.meta.timestamp].second++;
-      tracker_cond_.notify_all();
+    void Customer::Receiving() {
+      while (true) {
+      Message recv;
+      recv_queue_.WaitAndPop(&recv);
+      if (!recv.meta.control.empty() &&
+        recv.meta.control.cmd == Control::TERMINATE) {
+        break;
+      }
+      recv_handle_(recv);
+      if (!recv.meta.request) {
+        std::lock_guard<std::mutex> lk(tracker_mu_);
+        tracker_[recv.meta.timestamp].second++;
+        tracker_cond_.notify_all();
+      }
     }
   }
-}
-```
+  ```
   > 接收信息：通过Van类不断接收信息，然后放到Customer类中
   ```
   void Van::Receiving() {
