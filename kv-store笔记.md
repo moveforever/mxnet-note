@@ -98,9 +98,10 @@ kv-dist 内部运行
       - Connect
       - SendMsg
       - RecvMsg
-      更新操作
-      --------
-      - kvlocal
-        - push操作：CommCPU进行reduce聚合，然后再更新
-        - pull操作：广播
-      - kv-dist
+
+更新操作
+---
+- kvlocal
+  - push操作：CommCPU进行reduce聚合，然后再更新
+  - pull操作：广播
+- kv-dist
