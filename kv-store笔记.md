@@ -1,4 +1,4 @@
-KVStore初始化
+KVStore Worker初始化&运行
 ---
 - 通过python函数init_optimizer初始化
   - 调用kvstore的C++函数create:
@@ -74,7 +74,7 @@ KVStore初始化
           }
           ```
 
-kv-dist Server运行
+KVStore Server初始化&运行
 ---
 - 当本机是server节点时，通过python函数启动KVStoreDistServer
   ```python
