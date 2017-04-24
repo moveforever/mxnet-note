@@ -17,16 +17,16 @@ KVStore初始化
     }
 
     if (has("dist")) {
-//#if MXNET_USE_DIST_KVSTORE
+//if MXNET_USE_DIST_KVSTORE
       kv = new kvstore::KVStoreDist(use_device_comm);
       if (!has("_async") && kv->IsWorkerNode() && kv->get_rank()  == 0) {
       // configure the server to be the sync mode
         kv->SendCommandToServers(kvstore::kSyncMode, "");
       }
-//#else
+//else
       LOG(FATAL) << "compile with USE_DIST_KVSTORE=1 to use " << tname;
       return nullptr;
-//#endif  // MXNET_USE_DIST_KVSTORE
+//endif  // MXNET_USE_DIST_KVSTORE
     } else {
       kv =  new kvstore::KVStoreLocal(use_device_comm);
     }
