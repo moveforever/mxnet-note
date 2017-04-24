@@ -70,7 +70,7 @@ KVStore Worker初始化&&运行
           void KVStoreDist::SendCommandToServers(int cmd_id,
                                   const std::string& cmd_body) override {
             CHECK_NOTNULL(ps_worker_);
-            ps_worker_->Wait(ps_worker_->Request(cmd_id,cmd_body,                                                       ps::kServerGroup));
+            ps_worker_->Wait(ps_worker_->Request(cmd_id,cmd_body, ps::kServerGroup));
           }
           ```
 
