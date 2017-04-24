@@ -192,9 +192,96 @@ KVStore Server初始化&&运行
       - SendMsg
       - RecvMsg
 
-更新操作
+parameter server同步与异步更新代码细解
 ---
 - kvlocal
   - push操作：CommCPU进行reduce聚合，然后再更新
   - pull操作：广播
 - kv-dist
+
+```C++
+void DataHandle(const ps::KVMeta& req_meta,
+                const ps::KVPairs<real_t>& req_data,
+                ps::KVServer<real_t>* server) {
+  // do some check
+  CHECK_EQ(req_data.keys.size(), (size_t)1);
+  if (req_meta.push) {
+    CHECK_EQ(req_data.lens.size(), (size_t)1);
+    CHECK_EQ(req_data.vals.size(), (size_t)req_data.lens[0]);
+  }
+
+  int key = DecodeKey(req_data.keys[0]);
+  auto& stored = store_[key];
+
+  // there used several WaitToRead, this is because \a recved's memory
+  // could be deallocated when this function returns. so we need to make sure
+  // the operators with \a NDArray are actually finished
+  if (req_meta.push) {
+    size_t ds[] = {(size_t)req_data.lens[0]};
+    TShape dshape(ds, ds + 1);
+    TBlob recv_blob((real_t*)req_data.vals.data(), // NOLINT(*)
+                    dshape, cpu::kDevMask);
+    NDArray recved = NDArray(recv_blob, 0);
+    if (stored.is_none()) {
+      // initialization
+      stored = NDArray(dshape, Context());
+      CopyFromTo(recved, &stored, 0);
+      server->Response(req_meta);
+      stored.WaitToRead();
+    } else if (sync_mode_) {
+      // synced push
+      auto& merged = merge_buf_[key];
+      if (merged.array.is_none()) {
+        merged.array = NDArray(dshape, Context());
+      }
+
+      if (merged.request.size() == 0) {
+        CopyFromTo(recved, &merged.array, 0);
+      } else {
+        merged.array += recved;
+      }
+
+      merged.request.push_back(req_meta);
+
+      if (merged.request.size() == (size_t)ps::NumWorkers()) {
+        // let the main thread to execute updater_, which is necessary for
+        // python
+        if (updater_) {
+          exec_.Exec([this, key, &merged, &stored](){
+              CHECK(updater_);
+              updater_(key, merged.array, &stored);
+            });
+        } else {
+          // if no updater, just copy
+          CopyFromTo(merged.array, &stored);
+        }
+        for (const auto& req : merged.request) {
+          server->Response(req);
+        }
+        merged.request.clear();
+        stored.WaitToRead();
+      } else {
+        merged.array.WaitToRead();
+      }
+    } else {
+      // async push
+      exec_.Exec([this, key, &recved, &stored](){
+          CHECK(updater_);
+          updater_(key, recved, &stored);
+        });
+      server->Response(req_meta);
+      stored.WaitToRead();
+    }
+  } else {
+    // pull
+    ps::KVPairs<real_t> response;
+    CHECK(!stored.is_none()) << "init " << key << " first";
+    int len = stored.shape()[0];
+    response.keys = req_data.keys;
+    response.lens = {len};
+    // TODO(mli) try to remove this CopyFrom
+    response.vals.CopyFrom(static_cast<const float*>(stored.data().dptr_), len);
+    server->Response(req_meta, response);
+  }
+}
+```
